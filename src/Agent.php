@@ -3,10 +3,10 @@
 namespace Jenssegers\Agent;
 
 use BadMethodCallException;
+use Detection\MobileDetect;
 use Jaybizzle\CrawlerDetect\CrawlerDetect;
-use Mobile_Detect;
 
-class Agent extends Mobile_Detect
+class Agent extends MobileDetect
 {
     /**
      * List of desktop devices.
@@ -106,7 +106,7 @@ class Agent extends Mobile_Detect
         return $rules;
     }
 
-    public function getRules()
+    public function getRules(): array
     {
         if ($this->detectionType === static::DETECTION_TYPE_EXTENDED) {
             return static::getDetectionRulesExtended();
@@ -127,7 +127,7 @@ class Agent extends Mobile_Detect
         return static::$crawlerDetect;
     }
 
-    public static function getBrowsers()
+    public static function getBrowsers(): array
     {
         return static::mergeRules(
             static::$additionalBrowsers,
@@ -135,7 +135,7 @@ class Agent extends Mobile_Detect
         );
     }
 
-    public static function getOperatingSystems()
+    public static function getOperatingSystems(): array
     {
         return static::mergeRules(
             static::$operatingSystems,
@@ -156,7 +156,7 @@ class Agent extends Mobile_Detect
         return static::$desktopDevices;
     }
 
-    public static function getProperties()
+    public static function getProperties(): array
     {
         return static::mergeRules(
             static::$additionalProperties,
@@ -331,7 +331,7 @@ class Agent extends Mobile_Detect
         return "other";
     }
 
-    public function version($propertyName, $type = self::VERSION_TYPE_STRING)
+    public function version($propertyName, $type = self::VERSION_TYPE_STRING): string|float|bool
     {
         if (empty($propertyName)) {
             return false;
@@ -406,10 +406,40 @@ class Agent extends Mobile_Detect
             throw new BadMethodCallException("No such method exists: $name");
         }
 
-        $this->setDetectionType(self::DETECTION_TYPE_EXTENDED);
+        //$this->setDetectionType(self::DETECTION_TYPE_EXTENDED);
 
         $key = substr($name, 2);
 
         return $this->matchUAAgainstKey($key);
+    }
+
+    /**
+     * Search for a certain key in the rules array.
+     * If the key is found then try to match the corresponding
+     * regex against the User-Agent.
+     *
+     * @param string $key
+     *
+     * @return boolean
+     */
+    protected function matchUAAgainstKey($key)
+    {
+        // Make the keys lowercase so we can match: isIphone(), isiPhone(), isiphone(), etc.
+        $key = strtolower($key);
+        if ($this->cache->has($key)) {
+
+            // change the keys to lower case
+            $_rules = array_change_key_case($this->getRules());
+
+            if (false === empty($_rules[$key])) {
+                $this->cache->set($key, $this->match($_rules[$key]));
+            }
+
+            if (false === isset($this->cache[$key])) {
+                $this->cache->set($key, false);;
+            }
+        }
+
+        return $this->cache->get($key);
     }
 }
